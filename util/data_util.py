@@ -1,11 +1,12 @@
 __author__ = 'pcoleman'
 from ftplib import FTP
 from zipfile import ZipFile
-from util.db_util import create_tables
 import os
 import logging
-from util.db_util import execute_import_statements
 
+from database.db_util import create_tables
+from database.db_util import execute_import_statements
+from database.db_util import vacuum_full
 
 places_dir = 'data' + os.path.sep + 'places'
 roads_dir = 'data' + os.path.sep + 'roads'
@@ -71,13 +72,16 @@ def import_data_to_db():
     for data_dir in (places_dir, roads_dir):
         for f in os.listdir(data_dir):
             if f.endswith(".shp"):
-                command = "shp2pgsql -s 4269 -a -W latin1 {0} public.{1} > temp.txt"\
+                command = "shp2pgsql -s 4269 -a -W latin1 {0} public.{1}"\
                     .format(data_dir + os.path.sep + f,
                             data_dir.split(os.path.sep)[-1])
                 logger.info("Running " + command)
-                os.popen(command)
-                logger.info("Importing values into database")
-                execute_import_statements(data_dir + os.path.sep + "temp.txt")
+                import_lines = os.popen(command).readlines()
+                logger.info("Importing {0} values into database".format(str(len(import_lines))))
+                execute_import_statements(import_lines)
+
+    vacuum_full()
+
 
 if __name__ == "__main__":
     import_data_to_db()
