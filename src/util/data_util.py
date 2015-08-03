@@ -4,9 +4,9 @@ from zipfile import ZipFile
 import os
 from src import DEFAULT_LOGGER
 
-from src.database.db_util import create_tables
-from src.database.db_util import execute_import_statements
-from src.database.db_util import vacuum_full
+from src.dao.db_util import create_tables
+from src.dao.db_util import execute_import_statements
+from src.dao.db_util import vacuum_full
 
 PLACES_DIR = 'data' + os.path.sep + 'places'
 ROADS_DIR = 'data' + os.path.sep + 'roads'

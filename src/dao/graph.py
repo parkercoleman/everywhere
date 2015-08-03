@@ -5,7 +5,7 @@ from src import DEFAULT_LOGGER
 
 import pickle
 
-from src.database import get_connection
+from src.dao import get_connection
 
 
 class RoadGraph:
@@ -50,44 +50,57 @@ class RoadGraph:
 
         conn = get_connection()
         c = conn.cursor()
-        for i in range(0, 100):
-            DEFAULT_LOGGER.info("Creating graph for roads with linearids that end in {0}".format(str(i).zfill(2)))
-            c.execute(road_intersection_query.format(str(i).zfill(2)))
-            results = c.fetchall()
+        try:
+            for i in range(0, 100):
+                DEFAULT_LOGGER.info("Creating graph for roads with linearids that end in {0}".format(str(i).zfill(2)))
+                c.execute(road_intersection_query.format(str(i).zfill(2)))
+                results = c.fetchall()
 
-            for row in results:
-                r1id, r1name, r2id, r2name, intersection_point, r1len, r2len = row
-                r1id = int(r1id)
-                r2id = int(r2id)
+                for row in results:
+                    r1id, r1name, r2id, r2name, intersection_point, r1len, r2len = row
+                    r1id = int(r1id)
+                    r2id = int(r2id)
 
-                r.roads_info[r1id] = RoadEdge(r1id, r1name, r1len)
-                r.roads_info[r2id] = RoadEdge(r2id, r1name, r2len)
+                    r.roads_info[r1id] = RoadEdge(r1id, r1name, r1len)
+                    r.roads_info[r2id] = RoadEdge(r2id, r1name, r2len)
 
-                node = RoadNode.create_node_from_db_results(r1id, r2id, intersection_point)
-                r.roads_to_nodes[r1id].append(node)
-                r.roads_to_nodes[r2id].append(node)
+                    node = RoadNode.create_node_from_db_results(r1id, r2id, intersection_point)
+                    r.roads_to_nodes[r1id].append(node)
+                    r.roads_to_nodes[r2id].append(node)
 
-        # If a single road id has multiple nodes attached to it, that means those nodes are connected to each other
-        for road in r.roads_to_nodes:
-            for nodes in r.roads_to_nodes[road]:
-                for n in nodes:
-                    r.nodes_to_nodes[n] = r.nodes_to_nodes[n] | (set(nodes) - set(n))
+            # If a single road id has multiple nodes attached to it, that means those nodes are connected to each other
+            DEFAULT_LOGGER.info("Creating nodes to nodes data structure")
+            #TODO: I suspect we're duplicating a lot of objects here, its taking way more memory than it should
+            for road in r.roads_to_nodes:
+                for n in r.roads_to_nodes[road]:
+                    r.nodes_to_nodes[n] = r.nodes_to_nodes[n] | (set(r.roads_to_nodes[road]) - set([n]))
 
-        r.save(pickle_file_name)
+        except Exception as e:
+            DEFAULT_LOGGER.critical("Could not complete graph construction, saving results anyway for debugging. " + e)
+
+        finally:
+            DEFAULT_LOGGER.info("Saving to file " + pickle_file_name)
+            r.save(pickle_file_name)
 
 
 class RoadEdge:
-    def __init__(self, id, name, length):
-        self.id = id
+    def __init__(self, rid, name, length):
+        self.id = rid
         self.name = name
         self.length = length
 
+    def __str__(self):
+        return "id: %s, name: %s, length: %s" % (str(self.id), self.name, str(self.length))
+
 
 class RoadNode:
-    def __init__(self, id, lat, lon):
-        self.id = id
+    def __init__(self, rid, lat, lon):
+        self.id = rid
         self.lat = lat
         self.lon = lon
+
+    def __str__(self):
+        return "id: %s, lat: %s, lon: %s" % (str(self.id), str(self.lat), str(self.lon))
 
     @staticmethod
     def create_node_from_db_results(r1id, r2id, intersection_point_str):
@@ -101,7 +114,15 @@ class RoadNode:
 
 
 if __name__ == "__main__":
-    RoadGraph.construct_graph("test.pickle")
+    #RoadGraph.construct_graph("test.pickle")
+
+    r = RoadGraph.load("test.pickle")
+    for road in r.roads_to_nodes:
+        for n in r.roads_to_nodes[road]:
+            r.nodes_to_nodes[n] = r.nodes_to_nodes[n] | (set(r.roads_to_nodes[road]) - set([n]))
+
+    r.save("fulltest.pickle")
+
 
 
 

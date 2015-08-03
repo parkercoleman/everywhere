@@ -1,4 +1,4 @@
-from src.database import get_connection
+from src.dao import get_connection
 
 __author__ = 'pcoleman'
 
