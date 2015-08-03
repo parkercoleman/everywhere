@@ -1,4 +1,4 @@
-from database import get_connection
+from src.database import get_connection
 
 __author__ = 'pcoleman'
 

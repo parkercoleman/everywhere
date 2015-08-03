@@ -2,16 +2,14 @@ __author__ = 'pcoleman'
 from ftplib import FTP
 from zipfile import ZipFile
 import os
-import logging
+from src import DEFAULT_LOGGER
 
-from database.db_util import create_tables
-from database.db_util import execute_import_statements
-from database.db_util import vacuum_full
+from src.database.db_util import create_tables
+from src.database.db_util import execute_import_statements
+from src.database.db_util import vacuum_full
 
-places_dir = 'data' + os.path.sep + 'places'
-roads_dir = 'data' + os.path.sep + 'roads'
-
-logger = logging.getLogger()
+PLACES_DIR = 'data' + os.path.sep + 'places'
+ROADS_DIR = 'data' + os.path.sep + 'roads'
 
 
 def retrieve_data_from_census_ftp(ftp_dir, output_dir):
@@ -60,8 +58,8 @@ def extract_all_to_current_dir(data_dir):
 
 
 def retrieve_all_census_data():
-    for data_sets in [('/geo/tiger/TIGER2014/PRISECROADS/', roads_dir),
-                      ('/geo/tiger/TIGER2014/PLACE/', places_dir)]:
+    for data_sets in [('/geo/tiger/TIGER2014/PRISECROADS/', ROADS_DIR),
+                      ('/geo/tiger/TIGER2014/PLACE/', PLACES_DIR)]:
 
         retrieve_data_from_census_ftp(data_sets[0], data_sets[1])
         extract_all_to_current_dir(data_sets[1])
@@ -69,15 +67,15 @@ def retrieve_all_census_data():
 
 def import_data_to_db():
     create_tables()
-    for data_dir in (places_dir, roads_dir):
+    for data_dir in (PLACES_DIR, ROADS_DIR):
         for f in os.listdir(data_dir):
             if f.endswith(".shp"):
                 command = "shp2pgsql -s 4269 -a -W latin1 {0} public.{1}"\
                     .format(data_dir + os.path.sep + f,
                             data_dir.split(os.path.sep)[-1])
-                logger.info("Running " + command)
+                DEFAULT_LOGGER.info("Running " + command)
                 import_lines = os.popen(command).readlines()
-                logger.info("Importing {0} values into database".format(str(len(import_lines))))
+                DEFAULT_LOGGER.info("Importing {0} values into database".format(str(len(import_lines))))
                 execute_import_statements(import_lines)
 
     vacuum_full()

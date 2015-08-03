@@ -1,6 +1,7 @@
-import pg8000
-from config.db_config import db_config
 __author__ = 'pcoleman'
+import pg8000
+from src.config.db_config import db_config
+
 
 def get_connection():
     return pg8000.connect(user=db_config["user"],
