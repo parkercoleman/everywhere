@@ -38,15 +38,13 @@ class RoadGraph:
                     ST_AsText(ST_Centroid(ST_Intersection(r1.geom, r2.geom))) AS intersection_point,
                     ST_Length(r1.geom, true) AS r1len,
                     ST_Length(r2.geom, true) AS r2len
-            FROM roads r1
             INTO TABLE roads_intersection
+            FROM roads r1
             INNER JOIN roads r2 ON ((ST_Touches(r1.geom, r2.geom) OR ST_Intersects(r1.geom, r2.geom))
                 AND r1.linearid != r2.linearid
-                AND r2.rttyp NOT IN ('M', 'I')
+                AND r2.rttyp NOT IN ('I')
                 AND NOT ST_Equals(r1.geom, r2.geom))
-
-            WHERE r1.rttyp NOT IN ('M', 'I')
-            AND r1.linearid LIKE '%%{0}'
+            WHERE r1.rttyp NOT IN ('I')
         """
 
         places_intersection_query = """
@@ -55,8 +53,7 @@ class RoadGraph:
                 FROM places p
                 INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
                 WHERE p.lsad = '25'
-                AND r.rttyp NOT IN ('M', 'I')
-                AND geoid LIKE '%%{0}'
+                AND r.rttyp NOT IN ('I')
                 GROUP BY p.gid
             )
 
@@ -67,8 +64,7 @@ class RoadGraph:
             INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
             INNER JOIN max_length ml ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
             WHERE p.lsad = '25'
-            AND r.rttyp NOT IN ('M', 'I')
-            AND geoid LIKE '%%{0}'
+            AND r.rttyp NOT IN ('I')
             """
 
         roads_info = {}
@@ -78,9 +74,11 @@ class RoadGraph:
             e_conn = get_connection()
             try:
                 e_conn.autocommit = True
-                DEFAULT_LOGGER("Executing Road Intersection Query, this may take up to 30 minutes on a slow computer")
+                DEFAULT_LOGGER.info("Executing Road Intersection Query, this may take up to an hour on a slow computer")
+                e_conn.cursor().execute("DROP TABLE IF EXISTS roads_intersection")
                 e_conn.cursor().execute(road_intersection_query)
-                DEFAULT_LOGGER("Executing Places Intersection Query, this make take up to 15 minutes on a slow computer")
+                e_conn.cursor().execute("DROP TABLE IF EXISTS places_intersection")
+                DEFAULT_LOGGER.info("Executing Places Intersection Query, this make take up to 30 minutes on a slow computer")
                 e_conn.cursor().execute(places_intersection_query)
             finally:
                 e_conn.close()
@@ -96,7 +94,7 @@ class RoadGraph:
             s.sort()
             return "_".join(s)
 
-        # create_temp_tables()
+        create_temp_tables()
         conn = get_connection()
         c = conn.cursor()
 
@@ -128,12 +126,12 @@ class RoadGraph:
 
         DEFAULT_LOGGER.info("Gathering places information".format(str(i)))
         c.execute("SELECT * FROM places_intersection".format(str(i)))
-
+        results = c.fetchall()
         for row in results:
             gid, statefp, placens, name, rid, rname, location = row
             node_lat, node_lon = get_tuple_from_point_text(location)
             # Create a city node, similar to an intersection node, but with different tags (namely a "city_name")
-            roads_to_nodes[rid].append({"id": gid, "city_name": name, "lat": node_lat, "lon": node_lon})
+            roads_to_nodes[int(rid)].append({"id": gid, "city_name": name, "lat": node_lat, "lon": node_lon})
 
         # Write out these results to disk
         for ftuple in (("roads_info.pickle", roads_info), ("roads_to_nodes.pickle", roads_to_nodes)):
@@ -144,7 +142,6 @@ class RoadGraph:
 
     @staticmethod
     def construct_graph(pickle_file_name):
-
         roads_info, roads_to_nodes = RoadGraph.__gather_road_data()
         # Now we start actually building the graph.  If a road has multiple nodes attached to it,
         # that means those nodes are connected.  We will use the road's length as the weight of that connection.
@@ -167,10 +164,12 @@ class RoadGraph:
                 DEFAULT_LOGGER.warn("Road ID {0} Not found in Roads Info, cannot make an edge out of it".format(road))
 
         r.save(pickle_file_name)
+        return r
 
 
 if __name__ == "__main__":
-    r = RoadGraph.load("test.pickle")
+    r = RoadGraph.construct_graph("test.pickle")
+    # r = RoadGraph.load("test.pickle")
 
     print("Graph contains {0} nodes".format(nx.number_of_nodes(r.graph)))
     gi = nx.nodes_iter(r.graph)
