@@ -5,7 +5,7 @@ from src import DEFAULT_LOGGER
 import networkx as nx
 import pickle
 import os
-
+from haversine import haversine
 from src.dao import get_connection
 
 
@@ -52,6 +52,7 @@ class RoadGraph:
                 SELECT p.gid, MAX(ST_Length(ST_Intersection(p.geom, r.geom), true)) as max_length
                 FROM places p
                 INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
+                INNER JOIN roads_intersection ri ON (r.linearid = ri.r1id OR r.linearid = ri.r2id)
                 WHERE p.lsad = '25'
                 AND r.rttyp NOT IN ('I')
                 GROUP BY p.gid
@@ -59,7 +60,6 @@ class RoadGraph:
 
             SELECT p.gid, statefp, placens, name, r.linearid, r.fullname,
                 ST_AsText(ST_Centroid(ST_Intersection(p.geom, r.geom))) as location
-            INTO TABLE places_intersection
             FROM places p
             INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
             INNER JOIN max_length ml ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
@@ -78,8 +78,14 @@ class RoadGraph:
                 e_conn.cursor().execute("DROP TABLE IF EXISTS roads_intersection")
                 e_conn.cursor().execute(road_intersection_query)
                 e_conn.cursor().execute("DROP TABLE IF EXISTS places_intersection")
+
+                e_conn.cursor().execute("CREATE INDEX ON roads_intersection(r1id)")
+                e_conn.cursor().execute("CREATE INDEX ON roads_intersection(r2id)")
+                e_conn.cursor().execute("VACUUM FULL")
+
                 DEFAULT_LOGGER.info("Executing Places Intersection Query, this make take up to 30 minutes on a slow computer")
                 e_conn.cursor().execute(places_intersection_query)
+
             finally:
                 e_conn.close()
 
@@ -109,8 +115,8 @@ class RoadGraph:
                 r1id = int(r1id)
                 r2id = int(r2id)
 
-                roads_info[r1id] = {"id": r1id, "name": r1name, "weight": r1len}
-                roads_info[r2id] = {"id": r2id, "name": r2name, "weight": r2len}
+                roads_info[r1id] = {"id": r1id, "name": r1name}
+                roads_info[r2id] = {"id": r2id, "name": r2name}
 
                 node_lat, node_lon = get_tuple_from_point_text(intersection_point)
                 node = {"id": get_intersection_name(r1id, r2id), "lat": node_lat, "lon": node_lon}
@@ -159,7 +165,14 @@ class RoadGraph:
             if road in roads_info:
                 for i in range(0, len(nodes)):
                     for j in range(i, len(nodes)):
-                        r.graph.add_edge(nodes[i]["id"], nodes[j]["id"], attr_dict=roads_info[road])
+                        if nodes[i]["id"] == nodes[j]["id"]:
+                            continue
+
+                        r.graph.add_edge(nodes[i]["id"], nodes[j]["id"],
+                                         id=roads_info[road]["id"],
+                                         name=roads_info[road]["name"],
+                                         weight=haversine((nodes[i]["lat"], nodes[i]["lon"]),
+                                                          (nodes[j]["lat"], nodes[j]["lon"])))
             else:
                 DEFAULT_LOGGER.warn("Road ID {0} Not found in Roads Info, cannot make an edge out of it".format(road))
 
@@ -178,9 +191,7 @@ if __name__ == "__main__":
         if "city_name" in d:
             print("{0} {1}". format(str(n), str(d)))
 
-
-
-    r.graph.shortest_path(source="1565", target="1582")
+    print(r.graph.shortest_path(source="1565", target="1582"))
 
 
 
