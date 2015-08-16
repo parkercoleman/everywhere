@@ -107,7 +107,7 @@ class RoadGraph:
             s.sort()
             return "_".join(s)
 
-        # create_temp_tables()
+        create_temp_tables()
         conn = get_connection()
         c = conn.cursor()
 
@@ -184,17 +184,28 @@ class RoadGraph:
 
 
 if __name__ == "__main__":
-    r = RoadGraph.construct_graph("test.pickle")
-    # r = RoadGraph.load("test.pickle")
+    #r = RoadGraph.construct_graph("test.pickle")
+    r = RoadGraph.load("test.pickle")
 
     print("Graph contains {0} nodes".format(nx.number_of_nodes(r.graph)))
     gi = nx.nodes_iter(r.graph)
 
-    for n, d in r.graph.nodes_iter(data=True):
-        if "city_name" in d:
-            print("{0} {1}". format(str(n), str(d)))
+    #for n, d in r.graph.nodes_iter(data=True):
+    #    if "city_name" in d:
+    #        print("{0} {1}". format(str(n), str(d)))
 
-    print(r.graph.shortest_path(source="1565", target="1582"))
+    print(nx.shortest_path(r.graph, source=15, target=291))
+
+    #just a test: denim springs to new orleans
+    nodes_path = nx.shortest_path(r.graph, source=15, target=291)
+    directions_list = []
+    for i in range(0, len(nodes_path)-1):
+        next_road = r.graph.get_edge_data(nodes_path[i], nodes_path[i+1])['name']
+        if len(directions_list) == 0 or directions_list[-1] != next_road:
+            directions_list.append(next_road)
+
+    print(directions_list)
+
 
 
 

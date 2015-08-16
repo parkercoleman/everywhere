@@ -78,7 +78,7 @@ def retrieve_all_census_data():
 
 def import_data_to_db(fips=[]):
     '''
-    Imports Shapde file data into the database, requires shp2pgsql to be avialable on the path (it is called via os.popen)
+    Imports shape file data into the database, requires shp2pgsql to be avialable on the path (it is called via os.popen)
     :param fips: An optional list of state fips codes (integers) to import.
     :return:
     '''
