@@ -13,6 +13,12 @@ ROADS_DIR = 'data' + os.path.sep + 'roads'
 
 
 def retrieve_data_from_census_ftp(ftp_dir, output_dir):
+    '''
+    Connects to the census FTP server (ftp2.census.gov) and downloads the specified directory to the output directory
+    :param ftp_dir: the path to the desired data on the census server
+    :param output_dir: the output directory the data will be downloaded to
+    :return:
+    '''
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -46,6 +52,11 @@ def retrieve_data_from_census_ftp(ftp_dir, output_dir):
 
 
 def extract_all_to_current_dir(data_dir):
+    '''
+    Extracts all zipped files in the data_dir.  Once extracted, the zipped file will be deleted
+    :param data_dir:
+    :return:
+    '''
     for file in os.listdir(data_dir):
         if not file.endswith(".zip"):
             continue
@@ -65,22 +76,30 @@ def retrieve_all_census_data():
         extract_all_to_current_dir(data_sets[1])
 
 
-def import_data_to_db():
+def import_data_to_db(fips=[]):
+    '''
+    Imports Shapde file data into the database, requires shp2pgsql to be avialable on the path (it is called via os.popen)
+    :param fips: An optional list of state fips codes (integers) to import.
+    :return:
+    '''
     create_tables()
     for data_dir in (PLACES_DIR, ROADS_DIR):
         for f in os.listdir(data_dir):
             if f.endswith(".shp"):
-                command = "shp2pgsql -s 4269 -a -W latin1 {0} public.{1}"\
-                    .format(data_dir + os.path.sep + f,
-                            data_dir.split(os.path.sep)[-1])
-                DEFAULT_LOGGER.info("Running " + command)
-                import_lines = os.popen(command).readlines()
-                DEFAULT_LOGGER.info("Importing {0} values into database".format(str(len(import_lines))))
-                execute_import_statements(import_lines)
+                # If we don't have a fips list specified,
+                # OR our file name contains one of the fips codes we care about...
+                if fips == [] or True in ["_" + str(x) + "_" in f for x in fips]:
+                    command = "shp2pgsql -s 4269 -a -W latin1 {0} public.{1}"\
+                        .format(data_dir + os.path.sep + f,
+                                data_dir.split(os.path.sep)[-1])
+                    DEFAULT_LOGGER.info("Running " + command)
+                    import_lines = os.popen(command).readlines()
+                    DEFAULT_LOGGER.info("Importing {0} values into database".format(str(len(import_lines))))
+                    execute_import_statements(import_lines)
 
     vacuum_full()
 
 
 if __name__ == "__main__":
-    import_data_to_db()
+    import_data_to_db(fips=[22])
 

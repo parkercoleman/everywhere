@@ -47,45 +47,52 @@ class RoadGraph:
             WHERE r1.rttyp NOT IN ('I')
         """
 
-        places_intersection_query = """
-            WITH max_length AS (
-                SELECT p.gid, MAX(ST_Length(ST_Intersection(p.geom, r.geom), true)) as max_length
-                FROM places p
-                INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
-                INNER JOIN roads_intersection ri ON (r.linearid = ri.r1id OR r.linearid = ri.r2id)
-                WHERE p.lsad = '25'
-                AND r.rttyp NOT IN ('I')
-                GROUP BY p.gid
-            )
-
-            SELECT p.gid, statefp, placens, name, r.linearid, r.fullname,
-                ST_AsText(ST_Centroid(ST_Intersection(p.geom, r.geom))) as location
+        max_len_query = """
+            SELECT p.gid, MAX(ST_Length(ST_Intersection(p.geom, r.geom), true)) as max_length
+            INTO TABLE temp_max_length
             FROM places p
             INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
-            INNER JOIN max_length ml ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
+            INNER JOIN roads_intersection ri ON (r.linearid = ri.r1id OR r.linearid = ri.r2id)
             WHERE p.lsad = '25'
-            AND r.rttyp NOT IN ('I')
+            AND r.rttyp NOT IN ('I', 'M')
+            GROUP BY p.gid
+        """
+
+        places_intersection_query = """
+            SELECT p.gid, statefp, placens, name, r.linearid, r.fullname,
+                ST_AsText(ST_Centroid(ST_Intersection(p.geom, r.geom))) as location
+            INTO TABLE places_intersection
+            FROM places p
+            INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
+            INNER JOIN temp_max_length ml ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
+            WHERE p.lsad = '25'
+            AND r.rttyp NOT IN ('I', 'M')
             """
 
         roads_info = {}
         roads_to_nodes = defaultdict(list)
 
         def create_temp_tables():
+            commands = ["DROP TABLE IF EXISTS roads_intersection",
+                        road_intersection_query,
+                        "DROP TABLE IF EXISTS places_intersection",
+                        "DROP TABLE IF EXISTS temp_max_length",
+                        "CREATE INDEX ON roads_intersection(r1id)",
+                        "CREATE INDEX ON roads_intersection(r2id)",
+                        "VACUUM FULL",
+                        max_len_query,
+                        "CREATE INDEX ON temp_max_length(gid)",
+                        "CREATE INDEX ON temp_max_length(max_length)",
+                        "VACUUM FULL",
+                        places_intersection_query]
+
+            DEFAULT_LOGGER.info("Creating places and roads intersection tables, this can take hours on a slow machine")
             e_conn = get_connection()
+            e_conn.autocommit = True
             try:
-                e_conn.autocommit = True
-                DEFAULT_LOGGER.info("Executing Road Intersection Query, this may take up to an hour on a slow computer")
-                e_conn.cursor().execute("DROP TABLE IF EXISTS roads_intersection")
-                e_conn.cursor().execute(road_intersection_query)
-                e_conn.cursor().execute("DROP TABLE IF EXISTS places_intersection")
-
-                e_conn.cursor().execute("CREATE INDEX ON roads_intersection(r1id)")
-                e_conn.cursor().execute("CREATE INDEX ON roads_intersection(r2id)")
-                e_conn.cursor().execute("VACUUM FULL")
-
-                DEFAULT_LOGGER.info("Executing Places Intersection Query, this make take up to 30 minutes on a slow computer")
-                e_conn.cursor().execute(places_intersection_query)
-
+                for command in commands:
+                    DEFAULT_LOGGER.info("Executing: " + command)
+                    e_conn.cursor().execute(command)
             finally:
                 e_conn.close()
 
@@ -100,7 +107,7 @@ class RoadGraph:
             s.sort()
             return "_".join(s)
 
-        create_temp_tables()
+        # create_temp_tables()
         conn = get_connection()
         c = conn.cursor()
 
@@ -125,10 +132,6 @@ class RoadGraph:
 
             if not have_results:
                 break
-
-        # Now we need to calculate the "City Nodes", which represent cities and are attached to roads.  The Largest
-        # Intersection of a Road Line/City polygon decides which road a city node is on
-        # (in reality they're usually on many)
 
         DEFAULT_LOGGER.info("Gathering places information".format(str(i)))
         c.execute("SELECT * FROM places_intersection".format(str(i)))

@@ -28,6 +28,7 @@ def create_tables():
             ALTER TABLE "places" ADD PRIMARY KEY (gid);
             SELECT AddGeometryColumn('public','places','geom','4269','MULTIPOLYGON',2);
             CREATE INDEX places_geom_index ON places USING GIST (geom);
+            CREATE INDEX ON places(gid);
         """
         roads_sql = """
             DROP TABLE IF EXISTS "roads";
@@ -50,6 +51,8 @@ def create_tables():
 
     finally:
         conn.close()
+
+    vacuum_full()
 
 
 def vacuum_full():
