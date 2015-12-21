@@ -1,35 +1,32 @@
-__author__ = 'pcoleman'
-
 from collections import defaultdict
 from src import DEFAULT_LOGGER
-import networkx as nx
 import pickle
 import os
 from haversine import haversine
-from src.dao import get_connection
+from src.model import get_connection
+from src.model.graph import *
 
 
-class RoadGraph:
-    def __init__(self):
-        self.graph = nx.Graph()
-
-    def save(self, pickle_file_name):
+class GraphFactory:
+    @staticmethod
+    def save_graph(self, pickle_file_name):
         with open(pickle_file_name, 'wb') as pfile:
             pickle.dump(self, pfile, protocol=pickle.HIGHEST_PROTOCOL)
 
     @staticmethod
-    def load(pickle_file_name):
+    def load_graph(pickle_file_name):
         with open(pickle_file_name, 'rb') as pfile:
             return pickle.load(pfile)
 
     @staticmethod
     def __gather_road_data():
         if os.path.exists("roads_info.pickle") and os.path.exists("roads_to_nodes.pickle"):
-            DEFAULT_LOGGER.info("roads_to_nodes.pickle and roads_info.pickle were found, loading data from these two files")
-            return RoadGraph.load("roads_info.pickle"), RoadGraph.load("roads_to_nodes.pickle")
+            DEFAULT_LOGGER.info("roads_to_nodes.pickle and roads_info.pickle were found, "
+                                "loading data from these two files")
+
+            return GraphFactory.load_graph("roads_info.pickle"), GraphFactory.load_graph("roads_to_nodes.pickle")
 
         # Two queries that dump out our results into giant temporary tables
-
         road_intersection_query = """
             SELECT  r1.linearid AS r1id,
                     r1.fullname AS r1name,
@@ -64,7 +61,8 @@ class RoadGraph:
             INTO TABLE places_intersection
             FROM places p
             INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
-            INNER JOIN temp_max_length ml ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
+            INNER JOIN temp_max_length ml
+                ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
             WHERE p.lsad = '25'
             AND r.rttyp NOT IN ('I', 'M')
             """
@@ -149,9 +147,10 @@ class RoadGraph:
 
         return roads_info, roads_to_nodes
 
+
     @staticmethod
     def construct_graph(pickle_file_name):
-        roads_info, roads_to_nodes = RoadGraph.__gather_road_data()
+        roads_info, roads_to_nodes = GraphFactory.__gather_road_data()
         # Now we start actually building the graph.  If a road has multiple nodes attached to it,
         # that means those nodes are connected.  We will use the road's length as the weight of that connection.
         # This isn't always strictly correct, but it should be close enough.
@@ -179,39 +178,24 @@ class RoadGraph:
             else:
                 DEFAULT_LOGGER.warn("Road ID {0} Not found in Roads Info, cannot make an edge out of it".format(road))
 
-        r.save(pickle_file_name)
+        with open(pickle_file_name, 'wb') as pfile:
+            pickle.dump(r, pfile, protocol=pickle.HIGHEST_PROTOCOL)
+
         return r
 
 
 if __name__ == "__main__":
-    #r = RoadGraph.construct_graph("test.pickle")
-    r = RoadGraph.load("test.pickle")
+    # r = RoadGraph.construct_graph("test.pickle")
+    # r = RoadGraph.load("test.pickle")
 
-    print("Graph contains {0} nodes".format(nx.number_of_nodes(r.graph)))
-    gi = nx.nodes_iter(r.graph)
+    # print("Graph contains {0} nodes".format(nx.number_of_nodes(r.graph)))
+    # gi = nx.nodes_iter(r.graph)
 
-    #for n, d in r.graph.nodes_iter(data=True):
+    # for n, d in r.graph.nodes_iter(data=True):
     #    if "city_name" in d:
     #        print("{0} {1}". format(str(n), str(d)))
 
-    print(nx.shortest_path(r.graph, source=15, target=291))
+    # print(nx.shortest_path(r.graph, source=15, target=291))
 
-    #just a test: denim springs to new orleans
-    nodes_path = nx.shortest_path(r.graph, source=15, target=291)
-    directions_list = []
-    for i in range(0, len(nodes_path)-1):
-        next_road = r.graph.get_edge_data(nodes_path[i], nodes_path[i+1])['name']
-        if len(directions_list) == 0 or directions_list[-1] != next_road:
-            directions_list.append(next_road)
-
-    print(directions_list)
-
-
-
-
-
-
-
-
-
-
+    r = RoadGraph("/Users/ADINSX/projects/everywhere/graph.pickle")
+    r.shortest_route(15, 291)

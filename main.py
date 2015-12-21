@@ -3,7 +3,7 @@
 import argparse
 from src.util.data_util import retrieve_all_census_data
 from src.util.data_util import import_data_to_db
-from src.dao.graph import RoadGraph
+from src.model.graph_factory import GraphFactory
 
 
 def main():
@@ -13,7 +13,7 @@ def main():
         import_data_to_db([int(x) for x in args.fips])
 
     def create_graph():
-        RoadGraph.construct_graph(args.graph_name)
+        GraphFactory.construct_graph(args.graph_name)
 
     # TODO: Actually implement the web service :p
     def run_webapp():
