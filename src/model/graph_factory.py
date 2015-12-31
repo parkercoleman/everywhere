@@ -32,12 +32,14 @@ class GraphFactory:
                     r1.fullname AS r1name,
                     r2.linearid AS r2id,
                     r2.fullname AS r2name,
-                    ST_AsText(ST_Centroid(ST_Intersection(r1.geom, r2.geom))) AS intersection_point,
+                    ST_AsText(ST_Intersection(r1.geom, r2.geom)) AS intersection_point,
                     ST_Length(r1.geom, true) AS r1len,
-                    ST_Length(r2.geom, true) AS r2len
+                    ST_Length(r2.geom, true) AS r2len,
+                    ST_Intersection(r1.geom, r2.geom) AS geom
             INTO TABLE roads_intersection
             FROM roads r1
             INNER JOIN roads r2 ON ((ST_Touches(r1.geom, r2.geom) OR ST_Intersects(r1.geom, r2.geom))
+                AND GeometryType(ST_Intersection(r1.geom, r2.geom)) = 'POINT'
                 AND r1.linearid != r2.linearid
                 AND r2.rttyp NOT IN ('I')
                 AND NOT ST_Equals(r1.geom, r2.geom))
@@ -57,7 +59,8 @@ class GraphFactory:
 
         places_intersection_query = """
             SELECT p.gid, statefp, placens, name, r.linearid, r.fullname,
-                ST_AsText(ST_Centroid(ST_Intersection(p.geom, r.geom))) as location
+                ST_AsText(ST_Centroid(ST_Intersection(p.geom, r.geom))) as location,
+                ST_Centroid(ST_Intersection(p.geom, r.geom)) as geom
             INTO TABLE places_intersection
             FROM places p
             INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
@@ -116,7 +119,7 @@ class GraphFactory:
             have_results = False
             for row in results:
                 have_results = True
-                r1id, r1name, r2id, r2name, intersection_point, r1len, r2len = row
+                r1id, r1name, r2id, r2name, intersection_point, r1len, r2len, geom = row
                 r1id = int(r1id)
                 r2id = int(r2id)
 
@@ -135,7 +138,7 @@ class GraphFactory:
         c.execute("SELECT * FROM places_intersection".format(str(i)))
         results = c.fetchall()
         for row in results:
-            gid, statefp, placens, name, rid, rname, location = row
+            gid, statefp, placens, name, rid, rname, location, geom = row
             node_lat, node_lon = get_tuple_from_point_text(location)
             # Create a city node, similar to an intersection node, but with different tags (namely a "city_name")
             roads_to_nodes[int(rid)].append({"id": gid, "city_name": name, "lat": node_lat, "lon": node_lon})
@@ -185,17 +188,5 @@ class GraphFactory:
 
 
 if __name__ == "__main__":
-    # r = RoadGraph.construct_graph("test.pickle")
-    # r = RoadGraph.load("test.pickle")
-
-    # print("Graph contains {0} nodes".format(nx.number_of_nodes(r.graph)))
-    # gi = nx.nodes_iter(r.graph)
-
-    # for n, d in r.graph.nodes_iter(data=True):
-    #    if "city_name" in d:
-    #        print("{0} {1}". format(str(n), str(d)))
-
-    # print(nx.shortest_path(r.graph, source=15, target=291))
-
-    r = RoadGraph("/Users/ADINSX/projects/everywhere/graph.pickle")
-    r.shortest_route(15, 291)
+    gf = GraphFactory()
+    gf.construct_graph("/Users/ADINSX/projects/everywhere/graph2.pickle")
