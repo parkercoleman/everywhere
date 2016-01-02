@@ -2,3 +2,6 @@ pg8000 >= 1.10.2
 nose
 haversine>=0.4.2
 networkx
+shapely
+Flask==0.10.1
+us >= 0.9.1

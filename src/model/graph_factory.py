@@ -4,20 +4,9 @@ import pickle
 import os
 from haversine import haversine
 from src.model import get_connection
-from src.model.graph import *
 
 
 class GraphFactory:
-    @staticmethod
-    def save_graph(self, pickle_file_name):
-        with open(pickle_file_name, 'wb') as pfile:
-            pickle.dump(self, pfile, protocol=pickle.HIGHEST_PROTOCOL)
-
-    @staticmethod
-    def load_graph(pickle_file_name):
-        with open(pickle_file_name, 'rb') as pfile:
-            return pickle.load(pfile)
-
     @staticmethod
     def __gather_road_data():
         if os.path.exists("roads_info.pickle") and os.path.exists("roads_to_nodes.pickle"):
@@ -36,9 +25,9 @@ class GraphFactory:
                     ST_Length(r1.geom, true) AS r1len,
                     ST_Length(r2.geom, true) AS r2len,
                     ST_Intersection(r1.geom, r2.geom) AS geom
-            INTO TABLE roads_intersection
-            FROM roads r1
-            INNER JOIN roads r2 ON ((ST_Touches(r1.geom, r2.geom) OR ST_Intersects(r1.geom, r2.geom))
+            INTO TABLE gis.roads_intersection
+            FROM gis.roads r1
+            INNER JOIN gis.roads r2 ON ((ST_Touches(r1.geom, r2.geom) OR ST_Intersects(r1.geom, r2.geom))
                 AND GeometryType(ST_Intersection(r1.geom, r2.geom)) = 'POINT'
                 AND r1.linearid != r2.linearid
                 AND r2.rttyp NOT IN ('I')
@@ -48,10 +37,10 @@ class GraphFactory:
 
         max_len_query = """
             SELECT p.gid, MAX(ST_Length(ST_Intersection(p.geom, r.geom), true)) as max_length
-            INTO TABLE temp_max_length
-            FROM places p
-            INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
-            INNER JOIN roads_intersection ri ON (r.linearid = ri.r1id OR r.linearid = ri.r2id)
+            INTO TABLE gis.temp_max_length
+            FROM gis.places p
+            INNER JOIN gis.roads r ON ST_Intersects(p.geom, r.geom)
+            INNER JOIN gis.roads_intersection ri ON (r.linearid = ri.r1id OR r.linearid = ri.r2id)
             WHERE p.lsad = '25'
             AND r.rttyp NOT IN ('I', 'M')
             GROUP BY p.gid
@@ -61,10 +50,10 @@ class GraphFactory:
             SELECT p.gid, statefp, placens, name, r.linearid, r.fullname,
                 ST_AsText(ST_Centroid(ST_Intersection(p.geom, r.geom))) as location,
                 ST_Centroid(ST_Intersection(p.geom, r.geom)) as geom
-            INTO TABLE places_intersection
-            FROM places p
-            INNER JOIN roads r ON ST_Intersects(p.geom, r.geom)
-            INNER JOIN temp_max_length ml
+            INTO TABLE gis.places_intersection
+            FROM gis.places p
+            INNER JOIN gis.roads r ON ST_Intersects(p.geom, r.geom)
+            INNER JOIN gis.temp_max_length ml
                 ON (ST_Length(ST_Intersection(p.geom, r.geom), true) = ml.max_length AND p.gid = ml.gid)
             WHERE p.lsad = '25'
             AND r.rttyp NOT IN ('I', 'M')
@@ -74,16 +63,16 @@ class GraphFactory:
         roads_to_nodes = defaultdict(list)
 
         def create_temp_tables():
-            commands = ["DROP TABLE IF EXISTS roads_intersection",
+            commands = ["DROP TABLE IF EXISTS gis.roads_intersection",
                         road_intersection_query,
-                        "DROP TABLE IF EXISTS places_intersection",
-                        "DROP TABLE IF EXISTS temp_max_length",
-                        "CREATE INDEX ON roads_intersection(r1id)",
-                        "CREATE INDEX ON roads_intersection(r2id)",
+                        "DROP TABLE IF EXISTS gis.places_intersection",
+                        "DROP TABLE IF EXISTS gis.temp_max_length",
+                        "CREATE INDEX ON gis.roads_intersection(r1id)",
+                        "CREATE INDEX ON gis.roads_intersection(r2id)",
                         "VACUUM FULL",
                         max_len_query,
-                        "CREATE INDEX ON temp_max_length(gid)",
-                        "CREATE INDEX ON temp_max_length(max_length)",
+                        "CREATE INDEX ON gis.temp_max_length(gid)",
+                        "CREATE INDEX ON gis.temp_max_length(max_length)",
                         "VACUUM FULL",
                         places_intersection_query]
 
@@ -114,7 +103,7 @@ class GraphFactory:
 
         for i in range(0, 100000000, 100000):
             DEFAULT_LOGGER.info("Gathering road information OFFSET {0}".format(str(i)))
-            c.execute("SELECT * FROM roads_intersection ORDER BY r1id, r2id LIMIT 100000 OFFSET {0}".format(str(i)))
+            c.execute("SELECT * FROM gis.roads_intersection ORDER BY r1id, r2id LIMIT 100000 OFFSET {0}".format(str(i)))
             results = c.fetchall()
             have_results = False
             for row in results:
@@ -135,7 +124,7 @@ class GraphFactory:
                 break
 
         DEFAULT_LOGGER.info("Gathering places information".format(str(i)))
-        c.execute("SELECT * FROM places_intersection".format(str(i)))
+        c.execute("SELECT * FROM gis.places_intersection".format(str(i)))
         results = c.fetchall()
         for row in results:
             gid, statefp, placens, name, rid, rname, location, geom = row
@@ -150,13 +139,13 @@ class GraphFactory:
 
         return roads_info, roads_to_nodes
 
-
     @staticmethod
     def construct_graph(pickle_file_name):
         roads_info, roads_to_nodes = GraphFactory.__gather_road_data()
         # Now we start actually building the graph.  If a road has multiple nodes attached to it,
         # that means those nodes are connected.  We will use the road's length as the weight of that connection.
         # This isn't always strictly correct, but it should be close enough.
+        from src.model.graph import RoadGraph
         r = RoadGraph()
 
         DEFAULT_LOGGER.info("Creating Graph Data Structure")
@@ -185,8 +174,3 @@ class GraphFactory:
             pickle.dump(r, pfile, protocol=pickle.HIGHEST_PROTOCOL)
 
         return r
-
-
-if __name__ == "__main__":
-    gf = GraphFactory()
-    gf.construct_graph("/Users/ADINSX/projects/everywhere/graph2.pickle")

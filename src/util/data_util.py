@@ -1,9 +1,7 @@
-__author__ = 'pcoleman'
+import os
 from ftplib import FTP
 from zipfile import ZipFile
-import os
 from src import DEFAULT_LOGGER
-
 from src.model.db_util import create_tables
 from src.model.db_util import execute_import_statements
 from src.model.db_util import vacuum_full
@@ -89,7 +87,7 @@ def import_data_to_db(fips=[]):
                 # If we don't have a fips list specified,
                 # OR our file name contains one of the fips codes we care about...
                 if fips == [] or True in ["_" + str(x) + "_" in f for x in fips]:
-                    command = "shp2pgsql -s 4269 -a -W latin1 {0} public.{1}"\
+                    command = "shp2pgsql -s 4269 -a -W latin1 {0} gis.{1}"\
                         .format(data_dir + os.path.sep + f,
                                 data_dir.split(os.path.sep)[-1])
                     DEFAULT_LOGGER.info("Running " + command)

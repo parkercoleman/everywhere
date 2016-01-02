@@ -7,8 +7,8 @@ def create_tables():
     conn = get_connection()
     try:
         places_sql = """
-            DROP TABLE IF EXISTS "places";
-            CREATE TABLE "places" (gid serial,
+            DROP TABLE IF EXISTS "gis"."places";
+            CREATE TABLE "gis"."places" (gid serial,
             "statefp" varchar(2),
             "placefp" varchar(5),
             "placens" varchar(8),
@@ -25,22 +25,22 @@ def create_tables():
             "awater" float8,
             "intptlat" varchar(11),
             "intptlon" varchar(12));
-            ALTER TABLE "places" ADD PRIMARY KEY (gid);
+            ALTER TABLE "gis"."places" ADD PRIMARY KEY (gid);
             SELECT AddGeometryColumn('public','places','geom','4269','MULTIPOLYGON',2);
-            CREATE INDEX places_geom_index ON places USING GIST (geom);
-            CREATE INDEX ON places(gid);
+            CREATE INDEX places_geom_index ON gis.places USING GIST (geom);
+            CREATE INDEX ON gis.places(gid);
         """
         roads_sql = """
-            DROP TABLE IF EXISTS "roads";
-            CREATE TABLE "public"."roads" (gid serial,
+            DROP TABLE IF EXISTS "gis"."roads";
+            CREATE TABLE "gis"."roads" (gid serial,
             "linearid" varchar(22),
             "fullname" varchar(100),
             "rttyp" varchar(1),
             "mtfcc" varchar(5));
-            ALTER TABLE "public"."roads" ADD PRIMARY KEY (gid);
-            SELECT AddGeometryColumn('public','roads','geom','4269','MULTILINESTRING',2);
-            CREATE INDEX roads_geom_index ON roads USING GIST (geom);
-            CREATE INDEX roads_linearid_index ON roads(linearid);
+            ALTER TABLE "gis"."roads" ADD PRIMARY KEY (gid);
+            SELECT AddGeometryColumn('gis','roads','geom','4269','MULTILINESTRING',2);
+            CREATE INDEX roads_geom_index ON gis.roads USING GIST (geom);
+            CREATE INDEX roads_linearid_index ON gis.roads(linearid);
         """
 
         for sql in (places_sql, roads_sql):
@@ -59,8 +59,8 @@ def vacuum_full():
     conn = get_connection()
     try:
         conn.autocommit = True
-        conn.cursor().execute("VACUUM FULL places")
-        conn.cursor().execute("VACUUM FULL roads")
+        conn.cursor().execute("VACUUM FULL gis.places")
+        conn.cursor().execute("VACUUM FULL gis.roads")
     finally:
         conn.close()
 

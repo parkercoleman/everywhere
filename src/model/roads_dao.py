@@ -8,7 +8,7 @@ class RoadsDAO:
         conn = get_connection()
         try:
             c = conn.cursor()
-            sql_string = """SELECT ST_AsText(geom) FROM roads r WHERE r.linearid = '{0}' """.format(road_id)
+            sql_string = """SELECT ST_AsText(geom) FROM gis.roads r WHERE r.linearid = '{0}' """.format(road_id)
             c.execute(sql_string)
             results = c.fetchone()
             return shapely.wkt.loads(results[0]) if results is not None else None
