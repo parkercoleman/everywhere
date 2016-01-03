@@ -5,7 +5,6 @@ from src.model.roads_dao import RoadsDAO
 from src.model.places_dao import PlacesDAO
 from shapely.geometry import Point, LineString
 from shapely.ops import cascaded_union
-from src.model.graph_factory import GraphFactory
 from haversine import haversine
 
 
@@ -28,7 +27,7 @@ class RoadGraph:
         if graph_file is None:
             self.graph = nx.Graph()
         else:
-            self.graph = GraphFactory.load_graph(graph_file).graph
+            self.graph = RoadGraph.load_graph(graph_file).graph
 
     def shortest_route(self, source_id, target_id):
         path = nx.shortest_path(self.graph, source_id, target_id)

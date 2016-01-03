@@ -1,4 +1,3 @@
-__author__ = 'pcoleman'
 import pg8000
 from src import DEFAULT_LOGGER
 from src.config.db_config import db_config
@@ -14,14 +13,26 @@ def get_connection():
 
 def with_pg_connection(function):
     def wrapper(*args, **kwargs):
-        conn = get_connection()
+        conn = None
+        c = None
         try:
-            kwargs['cursor'] = conn.cursor()
-            kwargs['connection'] = conn
+            # The calling function might want to supply the connections themselves and close them later.
+            if 'connection' not in kwargs:
+                conn = get_connection()
+                kwargs['connection'] = conn
+
+            if 'cursor' not in kwargs:
+                c = kwargs['connection'].cursor()
+                kwargs['cursor'] = c
+
             return function(*args, **kwargs)
         except Exception as e:
             DEFAULT_LOGGER.error("Error running DB query: " + str(e))
         finally:
-            conn.close()
+            if c is not None:
+                c.close()
+
+            if conn is not None:
+                conn.close()
 
     return wrapper

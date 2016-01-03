@@ -1,9 +1,15 @@
-from collections import defaultdict
-from src import DEFAULT_LOGGER
 import pickle
 import os
+import networkx as nx
+from shapely.geometry import Point, LineString
+from shapely.ops import cascaded_union
+from collections import defaultdict
+from src import DEFAULT_LOGGER
 from haversine import haversine
 from src.model import get_connection
+from src.model.graph import RoadGraph
+from src.model.roads_dao import RoadsDAO
+
 
 
 class GraphFactory:
@@ -13,7 +19,7 @@ class GraphFactory:
             DEFAULT_LOGGER.info("roads_to_nodes.pickle and roads_info.pickle were found, "
                                 "loading data from these two files")
 
-            return GraphFactory.load_graph("roads_info.pickle"), GraphFactory.load_graph("roads_to_nodes.pickle")
+            return RoadGraph.load_graph("roads_info.pickle"), RoadGraph.load_graph("roads_to_nodes.pickle")
 
         # Two queries that dump out our results into giant temporary tables
         road_intersection_query = """
@@ -140,12 +146,101 @@ class GraphFactory:
         return roads_info, roads_to_nodes
 
     @staticmethod
+    def __add_geom_to_edges(road_graph):
+        """
+        This method adds the trimmed geometry of the roads that connect edges.  It also adds an accurate weight to the edges
+        :param RoadGraph:
+        :return:
+        """
+
+        def calc_geom(position, edge_id, destination, conn):
+            """
+            Calcuated the trimmed geom for this edge id
+            :param position: A Shapely Point object
+            :param edge_id:  The ID of the road this edge is on
+            :param destination: A Shapely Point object
+            :return:
+            """
+            cur_geom = RoadsDAO.get_road_geom(edge_id, connection=conn)
+
+            intersection_index = {
+                "line_index": -1,
+                "point_index": -1,
+                "distance": 9999999999
+            }
+            origin_index = {
+                "line_index": -1,
+                "point_index": -1,
+                "distance": 9999999999
+            }
+
+            # We need to find the closest points in our MultiLine to the intersection point, and the origin point
+            for i in range(0, len(cur_geom)):
+                line = cur_geom[i]
+                for j in range(0, len(line.coords)):
+                    p = line.coords[j]
+                    if haversine((destination.y, destination.x), (p[1], p[0])) \
+                            < intersection_index['distance']:
+                        intersection_index["line_index"] = i
+                        intersection_index["point_index"] = j
+                        intersection_index["distance"] = haversine((destination.y, destination.x), (p[1], p[0]))
+
+                    if haversine((position.y, position.x), (p[1], p[0])) \
+                            < origin_index['distance']:
+                        origin_index["line_index"] = i
+                        origin_index["point_index"] = j
+                        origin_index["distance"] = haversine((position.y, position.x), (p[1], p[0]))
+
+            if intersection_index['line_index'] != origin_index['line_index']:
+                DEFAULT_LOGGER.error("Our origin and destination were not on the same line for edge: " + edge_id)
+                return None
+
+            begin, end = (intersection_index['point_index'], origin_index['point_index']) \
+                if intersection_index['point_index'] < origin_index['point_index'] \
+                else (origin_index['point_index'], intersection_index['point_index'])
+
+            if begin == end:
+                return None
+
+            return LineString(cur_geom[intersection_index['line_index']].coords[begin:end+1])
+
+        g = road_graph.graph
+        conn = get_connection()
+        i = 0
+        try:
+            for cur_node, cur_data in g.nodes_iter(data=True):
+                for dest_node in nx.all_neighbors(g, cur_node):
+                    if 'geom' not in g[cur_node][dest_node]:
+                        dest_data = g.node[dest_node]
+                        edge_id = g[cur_node][dest_node]['id']
+
+                        # Ur pos is a pos
+                        current_pos = Point(cur_data['lon'], cur_data['lat'])
+                        dest_pos = Point(dest_data['lon'], dest_data['lat'])
+
+                        try:
+                            g[cur_node][dest_node]['geom'] = calc_geom(current_pos, edge_id, dest_pos, conn)
+                        except Exception as e:
+                            DEFAULT_LOGGER.warn("Could not create trimmed geometry between nodes: " +
+                                                cur_node + " and " + dest_node + " Because: " + str(e))
+
+                i += 1
+                if i % 100 == 0:
+                    DEFAULT_LOGGER.info("Computed geometries for " + str(i) + " nodes out of " + str(nx.number_of_nodes(g)))
+
+
+
+        finally:
+            conn.close()
+
+
+    @staticmethod
     def construct_graph(pickle_file_name):
         roads_info, roads_to_nodes = GraphFactory.__gather_road_data()
         # Now we start actually building the graph.  If a road has multiple nodes attached to it,
         # that means those nodes are connected.  We will use the road's length as the weight of that connection.
         # This isn't always strictly correct, but it should be close enough.
-        from src.model.graph import RoadGraph
+
         r = RoadGraph()
 
         DEFAULT_LOGGER.info("Creating Graph Data Structure")
@@ -170,7 +265,12 @@ class GraphFactory:
             else:
                 DEFAULT_LOGGER.warn("Road ID {0} Not found in Roads Info, cannot make an edge out of it".format(road))
 
+        GraphFactory.__add_geom_to_edges(r)
+
         with open(pickle_file_name, 'wb') as pfile:
             pickle.dump(r, pfile, protocol=pickle.HIGHEST_PROTOCOL)
 
         return r
+
+if __name__ == "__main__":
+    GraphFactory.construct_graph("graph.pickle")
