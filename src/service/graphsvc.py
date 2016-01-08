@@ -5,7 +5,9 @@ from flask import Blueprint, Response
 from src import DEFAULT_LOGGER
 from src.model.places_dao import PlacesDAO
 from src.model.graph import RoadGraph
+from src.model.user_routes_dao import UserRoutesDAO
 graph_endpoints = Blueprint('graph', __name__)
+
 
 
 def get_graph():
@@ -30,6 +32,8 @@ def calculate_route(first_id, second_id):
         return "Graph error: " + str(e), 400
 
     for s in rsp.steps:
-        s.trimmed_geom = shapely.wkt.dumps(s.trimmed_geom) if s.trimmed_geom is not None else None
+        s.next_edge_geom = shapely.wkt.dumps(s.next_edge_geom) if s.next_edge_geom is not None else None
+
+    UserRoutesDAO.insert_route(rsp)
 
     return Response(json.dumps([x.__dict__ for x in rsp.steps], indent=4), mimetype='application/json')

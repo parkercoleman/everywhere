@@ -1,11 +1,6 @@
 import networkx as nx
 import pickle
-from src import DEFAULT_LOGGER
-from src.model.roads_dao import RoadsDAO
-from src.model.places_dao import PlacesDAO
-from shapely.geometry import Point, LineString
 from shapely.ops import cascaded_union
-from haversine import haversine
 
 
 class RoadGraph:
@@ -32,18 +27,18 @@ class RoadGraph:
     def shortest_route(self, source_id, target_id):
         path = nx.shortest_path(self.graph, source_id, target_id)
         route = Route()
-
         for i in range(0, len(path)):
             n = self.graph.node[path[i]]
             if i+1 == len(path):
+                # this is the final step in the path, so there is no next edge
                 route.steps.append(Step(
                     n['id'],
                     n['lat'],
                     n['lon'],
                     None,
                     None,
+                    None,
                     n['city_name'] if 'city_name' in n else None,
-                    n['geom'] if 'geom' in n else None
                 ))
             else:
                 next_road = self.graph.get_edge_data(path[i], path[i+1])
@@ -53,10 +48,11 @@ class RoadGraph:
                     n['lon'],
                     next_road['id'],
                     next_road['name'],
-                    n['geom'] if 'geom' in n else None
+                    next_road['geom'],
+                    n['city_name'] if 'city_name' in n else None
                 ))
 
-        route.dedupe_steps()
+        # route.dedupe_steps()
         return route
 
 
@@ -109,14 +105,14 @@ class Route:
 
 class Step:
     """A step represents a state in a route, it has a location (lat, lon), a next edge id/name and a db_id"""
-    def __init__(self, db_id, lat, lon, next_edge_id, next_edge_name, city_name=None, trimmed_geom=None):
+    def __init__(self, db_id, lat, lon, next_edge_id, next_edge_name, next_edge_geom, city_name=None):
         self.db_id = db_id
         self.lat = lat
         self.lon = lon
         self.next_edge_id = next_edge_id
         self.next_edge_name = next_edge_name
+        self.next_edge_geom = next_edge_geom
         self.city_name = city_name
-        self.trimmed_geom = trimmed_geom
 
     def __str__(self):
         return str(self.__dict__)

@@ -1,7 +1,5 @@
 from src.model import get_connection
 
-__author__ = 'pcoleman'
-
 
 def create_tables():
     conn = get_connection()
@@ -43,7 +41,18 @@ def create_tables():
             CREATE INDEX roads_linearid_index ON gis.roads(linearid);
         """
 
-        for sql in (places_sql, roads_sql):
+        user_routes = """
+            CREATE TABLE gis.user_routes(
+                route_id uuid,
+                step_id integer,
+                last_accessed timestamp without time zone
+            );
+            SELECT AddGeometryColumn('gis','user_routes','geom','4269','LINESTRING',2);
+            CREATE INDEX ON gis.user_routes USING GIST(geom);
+            CREATE INDEX ON gis.user_routes(route_id);
+        """
+
+        for sql in (places_sql, roads_sql, user_routes):
             for c in sql.split(";"):
                 if not c.strip() == "":
                     conn.cursor().execute(c)
