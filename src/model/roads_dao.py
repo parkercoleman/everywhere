@@ -12,4 +12,20 @@ class RoadsDAO:
         results = c.fetchone()
         return shapely.wkt.loads(results[0]) if results is not None else None
 
+    @staticmethod
+    @with_pg_connection
+    def get_road_hashmap(**kwargs):
+        """
+        Gets all road geoms from database.... this returns a pretty huge hashmap
+        :return:
+        """
+        c = kwargs['cursor']
+        sql_string = "SELECT linearid, ST_AsText(geom) FROM gis.roads"
+        c.execute(sql_string)
+        results = c.fetchall()
+        r = {}
+        for row in results:
+            id, geom = row
+            r[id] = shapely.wkt.loads(geom)
 
+        return r

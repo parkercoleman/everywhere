@@ -1,6 +1,7 @@
 import pg8000
 from src import DEFAULT_LOGGER
 from src.config.db_config import db_config
+from shapely.geometry import Point
 
 
 def get_connection():
@@ -36,3 +37,11 @@ def with_pg_connection(function):
                 conn.close()
 
     return wrapper
+
+
+def get_node_name_from_location(lat, lon):
+    return get_node_name_from_location(Point(lon, lat))
+
+
+def get_node_name_from_location(shapely_point):
+    return str(shapely_point.y) + "," + str(shapely_point.x)
