@@ -43,7 +43,7 @@ def create_tables():
 
         user_routes = """
             CREATE TABLE gis.user_routes(
-                route_id uuid,
+                route_id text,
                 step_id integer,
                 last_accessed timestamp without time zone
             );

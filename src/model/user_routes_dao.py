@@ -23,8 +23,9 @@ class UserRoutesDAO:
         for i in range(0, len(route.steps)):
             step = route.steps[i]
             if step.next_edge_geom is not None:
-                c.execute(insert_sql, (route_id, i, epoch_time, step.next_edge_geom))
+                c.execute(insert_sql, (route_id, i, epoch_time, step.next_edge_geom.wkt))
 
             i += 1
 
         conn.commit()
+        return route_id

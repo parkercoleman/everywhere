@@ -19,7 +19,7 @@ def main():
 
     def run_webapp():
         from flask import Flask
-        flask_app = Flask(__name__)
+        flask_app = Flask(__name__, static_url_path='')
         flask_app.register_blueprint(src.service.graphsvc.graph_endpoints, url_prefix='/graph')
         DEFAULT_LOGGER.info(flask_app.url_map)
         flask_app.run()
