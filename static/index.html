@@ -1,101 +1,87 @@
 <!doctype html>
 <html lang="en">
-    <head>
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="description" content="Off the Beatnik Path">
-        <meta name="author" content="Parker Coleman">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Off the Beatnik Path">
+    <meta name="author" content="Parker Coleman">
 
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
-        <link rel="stylesheet" href="http://openlayers.org/en/v3.8.2/css/ol.css" type="text/css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="http://openlayers.org/en/v3.8.2/css/ol.css" type="text/css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/1.0.3/ui-bootstrap-tpls.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="controllers/mapcontroller.js"></script>
+    <script src="http://openlayers.org/en/v3.8.2/build/ol.js" type="text/javascript"></script>
 
 
-        <title>Off The Beatnik Path</title>
-    </head>
+    <title>Off The Beatnik Path</title>
+</head>
 
-    <body ng-app="otbp">
-        <nav class="navbar navbar-default">
-            <div class="container-fluid">
-                <div class="navbar-header">
-                    <a class="navbar-brand" href="#">Off the Beatnik Path</a>
-                </div>
-                <div id="navbar" class="collapse navbar-collapse">
-                    <ul class="nav navbar-nav">
-                        <li><a href="#about">About</a></li>
-                        <li><a href="#contact">Contact</a></li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-        <div class="container typeahead-demo" ng-controller="MapController as mapCtrl">
-            <div class="row">
-                <div class="col-md-9">
-                    <div id="map" class="map"></div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-
-                        <div class="input-group input-group-md">
-                            <span class="input-group-btn">
-                                <input id="startLocInput" type="text" ng-model="startLoc"
-                                       placeholder="Start Location"
-                                       data-provide="typeahead"
-                                       class="form-control"/>
-                                </span>
-                        </div>
-                        <div class="input-group input-group-md">
-                            <span class="input-group-btn">
-                                    <input id="endLocInput" type="text" ng-model="endLoc"
-                                           placeholder="End Location"
-                                           data-provide="typeahead"
-                                           class="form-control"/>
-                            </span>
-                         </div>
-                        <button id="calcRouteButton" type="button" class="btn btn-default">Calculate Route</button>
-                    </div>
-                </div>
-            </div>
+<body ng-app="otbp">
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="#">Off the Beatnik Path</a>
         </div>
-
-        <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/1.0.3/ui-bootstrap.min.js"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-        <script src="controllers/mapcontroller.js"></script>
-        <script src="http://openlayers.org/en/v3.8.2/build/ol.js" type="text/javascript"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-3-typeahead/4.0.0/bootstrap3-typeahead.js"
-                type="text/javascript"></script>
-
-        <script type="text/javascript">
-            var map = new ol.Map({
-                target: 'map',
-                layers: [
-              new ol.layer.Tile({
-                        source: new ol.source.MapQuest({
-                            layer: 'osm'
-                        })
-                    })
-            ],
-                view: new ol.View({
-                    center: ol.proj.transform([-98, 39], 'EPSG:4326', 'EPSG:3857'),
-                    zoom: 4
+        <div id="navbar" class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div class="container typeahead-demo" ng-controller="MapController as mapCtrl">
+    <div class="row">
+        <div class="col-md-9">
+            <div id="map" class="map"></div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-group">
+                <div class="input-group-md">
+                        <input id="startLocInput"
+                            type="text"
+                            ng-model="mapCtrl.startLoc"
+                            placeholder="Starting Location"
+                            typeahead-editable='false'
+                            uib-typeahead="city as city.city_name + ', ' + city.state_name for city in mapCtrl.getCitiesFromPartial($viewValue)"
+                            class="form-control">
+                </div>
+                <div class="input-group-md">
+                        <input id="endLocInput"
+                            type="text"
+                            ng-model="mapCtrl.endLoc"
+                            placeholder="End Location"
+                            typeahead-editable='false'
+                            uib-typeahead="city as city.city_name + ', ' + city.state_name for city in mapCtrl.getCitiesFromPartial($viewValue)"
+                            class="form-control">
+                </div>
+                <button id="calcRouteButton" type="button" class="btn btn-default"
+                        ng-click="mapCtrl.calculateRoute()">Calculate Route</button>
+            </div>
+            {{mapCtrl.endLoc | json}}
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    var map = new ol.Map({
+        target: 'map',
+        layers: [
+            new ol.layer.Tile({
+                source: new ol.source.MapQuest({
+                    layer: 'osm'
                 })
-            });
-        </script>
-
-        <script type="text/javascript">
-            jQuery(document).ready(function() {
-                var typeaheadObj = {
-                    source: function (query, process) {
-                        return $.get('/graph/places/' + query, function (data) {
-                            process(data.map(function(item){return item.city_name + ", " + item.state_name}));
-                        });
-                    }
-                };
-                $('#startLocInput').typeahead(typeaheadObj);
-                $('#endLocInput').typeahead(typeaheadObj);
             })
-        </script>
-    </body>
+        ],
+        view: new ol.View({
+            center: ol.proj.transform([-98, 39], 'EPSG:4326', 'EPSG:3857'),
+            zoom: 4
+        })
+    });
+</script>
+</body>
 </html>

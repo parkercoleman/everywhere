@@ -2,6 +2,7 @@ import json
 import shapely
 import networkx.exception
 from flask import Blueprint, Response
+from src.util.nocache import nocache
 from src import DEFAULT_LOGGER
 from src.model.places_dao import PlacesDAO
 from src.model.graph import RoadGraph, Step
@@ -61,12 +62,14 @@ def convert_steps_to_json_response(steps):
 
 
 @graph_endpoints.route("/places/<name>", methods=["GET"])
+@nocache
 def get_places_from_partial_name(name):
     rl = PlacesDAO.get_city_and_state_from_partial(name)
     return Response(json.dumps(rl, indent=4), mimetype='application/json')
 
 
 @graph_endpoints.route("/calc_route/from/<int:first_id>/to/<int:second_id>")
+@nocache
 def calculate_route(first_id, second_id):
     try:
         route = get_graph().shortest_route(first_id, second_id)
