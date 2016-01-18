@@ -1,5 +1,9 @@
 import networkx as nx
 import pickle
+import abc
+import uuid
+from geopy import distance
+from src.model.places_dao import PlacesDAO
 
 
 class RoadGraph:
@@ -25,16 +29,21 @@ class RoadGraph:
 
     def shortest_route(self, source_id, target_id):
         path = nx.shortest_path(self.graph, source_id, target_id)
-        route = Route()
+        route_id = str(uuid.uuid4())
+        route = Route(route_id,
+                      self.graph.node[path[0]]['lat'],
+                      self.graph.node[path[0]]['lon'],
+                      PlacesDAO.get_place_name_by_id(source_id) + " to " + PlacesDAO.get_place_name_by_id(target_id))
+
         for i in range(0, len(path)):
             n = self.graph.node[path[i]]
             if i+1 == len(path):
                 # this is the final step in the path, so there is no next edge
                 route.steps.append(Step(
+                    route_id,
                     i,
                     n['lat'],
                     n['lon'],
-                    None,
                     None,
                     None,
                     n['city_name'] if 'city_name' in n else None,
@@ -42,10 +51,10 @@ class RoadGraph:
             else:
                 next_road = self.graph.get_edge_data(path[i], path[i+1])
                 route.steps.append(Step(
+                    route_id,
                     i,
                     n['lat'],
                     n['lon'],
-                    next_road['id'],
                     next_road['name'],
                     next_road['geom'],
                     n['city_name'] if 'city_name' in n else None
@@ -54,25 +63,37 @@ class RoadGraph:
         return route
 
 
-class Route:
-    """A route is a series of steps"""
-    def __init__(self):
-        self.steps = []
+class AbstractRoute:
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, rid, start_lat, start_lon, r_name, geom):
+        self.id = rid
+        self.start_lat = start_lat
+        self.start_lon = start_lon
+        self.name = r_name
+        self.geom = geom
+
+        # These values will be calculated later
+        self.distance_meters = 0
+        self.geom_centroid = None
+        self.geom_bbox = None
+
+
+class Step(AbstractRoute):
+    def __init__(self, rid, sid, start_lat, start_lon, r_name, geom, city_name=None):
+        AbstractRoute.__init__(self, rid, start_lat, start_lon, r_name, geom)
+        self.step_id = sid
+        self.city_name = city_name
+        self.turn = None
 
     def __str__(self):
         return str(self.__dict__)
 
 
-class Step:
-    """A step represents a state in a route, it has a location (lat, lon), a next edge id/name and a db_id"""
-    def __init__(self, id, lat, lon, next_edge_id, next_edge_name, next_edge_geom, city_name=None):
-        self.step_id = id
-        self.lat = lat
-        self.lon = lon
-        self.next_edge_id = next_edge_id
-        self.next_edge_name = next_edge_name
-        self.next_edge_geom = next_edge_geom
-        self.city_name = city_name
+class Route(AbstractRoute):
+    def __init__(self, rid, start_lat, start_lon, r_name):
+        AbstractRoute.__init__(self, rid, start_lat, start_lon, r_name, None)
+        self.steps = []
 
     def __str__(self):
         return str(self.__dict__)

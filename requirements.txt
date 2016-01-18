@@ -5,3 +5,4 @@ networkx
 shapely
 Flask==0.10.1
 us >= 0.9.1
+geopy>=1.11.0

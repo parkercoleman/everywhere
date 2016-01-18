@@ -1,5 +1,4 @@
 import json
-import shapely
 import networkx.exception
 from flask import Blueprint, Response
 from src.util.nocache import nocache
@@ -7,6 +6,7 @@ from src import DEFAULT_LOGGER
 from src.model.places_dao import PlacesDAO
 from src.model.graph import RoadGraph, Step
 from src.model.user_routes_dao import UserRoutesDAO
+
 graph_endpoints = Blueprint('graph', __name__)
 
 
@@ -20,8 +20,8 @@ def get_graph():
 
 def convert_steps_to_json_response(steps):
     """
-    Goes through the steps list and looks for back to back steps with the same next_edge name.
-    These steps will be merged.  Also removes next_edge_geom from step object
+    Goes through the steps list and looks for back to back steps with the same name.
+    These steps will be merged.
     :return: a list of dicts that represent steps
     """
     # De-duped steps
@@ -32,21 +32,29 @@ def convert_steps_to_json_response(steps):
     def merge_group(cg):
         if len(cg) == 0:
             raise Exception("merge_group called on an empty list, nothing to merge")
-        lat = cg[0].lat
-        lon = cg[0].lon
-        next_edge_id = cg[-1].next_edge_id
-        next_edge_name = cg[-1].next_edge_name
+        lat = cg[0].start_lat
+        lon = cg[0].start_lon
+        name = cg[0].name
+
+        distance_meters = 0
+        for s in cg:
+            distance_meters += s.distance_meters
 
         return {
             'lat': lat,
             'lon': lon,
-            'next_edge_id': next_edge_id,
-            'next_edge_name': next_edge_name,
+            'next_edge_name': name,
+            'distance': {
+                'val': '{0:.2f}'.format(distance_meters * 0.000621371)
+                    if distance_meters >= 1610
+                    else '{0:.2f}'.format(distance_meters * 3.2808388799999997),
+                'unit': 'miles' if distance_meters >= 1610 else 'feet'
+            },
             'steps': [x.step_id for x in cg]
         }
 
     for step in steps:
-        if current_road != step.next_edge_name:
+        if current_road != step.name:
             # If we've changed roads, merge all of the previous groups
             if len(current_group) != 0:
                 dds.append(merge_group(current_group))
@@ -56,7 +64,7 @@ def convert_steps_to_json_response(steps):
             # If we're on the same road, keep adding to the current group
             current_group.append(step)
 
-        current_road = step.next_edge_name
+        current_road = step.name
 
     return dds
 
@@ -76,11 +84,11 @@ def calculate_route(first_id, second_id):
     except networkx.exception.NetworkXError as e:
         return "Graph error: " + str(e), 400
 
-    route_id = UserRoutesDAO.insert_route(route)
+    route = UserRoutesDAO.insert_and_decorate_route(route)
     steps_rsp = convert_steps_to_json_response(route.steps)
 
     rsp = {
-        'route_id': route_id,
+        'route_id': route.id,
         'steps': steps_rsp
     }
 

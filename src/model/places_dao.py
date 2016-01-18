@@ -35,6 +35,15 @@ class PlacesDAO:
 
     @staticmethod
     @with_pg_connection
+    def get_place_name_by_id(pid, **kwargs):
+        c = kwargs['cursor']
+        sql_string = 'SELECT "name", statefp FROM gis.places WHERE gid =' + str(pid)
+        c.execute(sql_string)
+        results = c.fetchone()
+        return str(results[0]) + ", " + str(us.states.lookup(results[1]).name) if results is not None else None
+
+    @staticmethod
+    @with_pg_connection
     def get_nearest_intersection_from_point(lat, lon, **kwargs):
         if not ((type(lat) == int or type(lat) == float) and (type(lat) == int or type(lat) == float)):
             raise ValueError("Both lat and lon must be numeric")

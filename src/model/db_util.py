@@ -40,19 +40,31 @@ def create_tables():
             CREATE INDEX roads_geom_index ON gis.roads USING GIST (geom);
             CREATE INDEX roads_linearid_index ON gis.roads(linearid);
         """
-
         user_routes = """
             CREATE TABLE gis.user_routes(
                 route_id text,
                 step_id integer,
+                step_name text,
+                entry_type character varying(10),
+                starting_point geometry,
+                geom_length_meters double precision DEFAULT 0,
+                geom_centroid geometry,
+                geom_extent geometry,
+                geom geometry(LineString,4269),
                 last_accessed timestamp without time zone
             );
-            SELECT AddGeometryColumn('gis','user_routes','geom','4269','LINESTRING',2);
             CREATE INDEX ON gis.user_routes USING GIST(geom);
             CREATE INDEX ON gis.user_routes(route_id);
         """
 
-        for sql in (places_sql, roads_sql, user_routes):
+        user_routes_geoserver = """
+            CREATE VIEW gis.user_routes_geoserver AS
+            SELECT route_id, step_id, geom
+            FROM gis.user_routes
+            WHERE entry_type = 'STEP';
+        """
+
+        for sql in (places_sql, roads_sql, user_routes, user_routes_geoserver):
             for c in sql.split(";"):
                 if not c.strip() == "":
                     conn.cursor().execute(c)

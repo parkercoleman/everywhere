@@ -213,7 +213,6 @@ class GraphFactory:
                                      name=roads_info[road]["name"],
                                      weight=geom.length if geom is not None else None,
                                      geom=geom)
-                                     # weight=haversine((n1['lat'], n1['lon']), (n2['lat'], n2['lon'])))
 
             print('\rConstructing Graph: {0:.2f}%'.format(nodes_processed/len(roads_to_nodes) * 100), end="")
             nodes_processed += 1
