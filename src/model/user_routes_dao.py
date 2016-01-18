@@ -15,7 +15,6 @@ class UserRoutesDAO:
 
         :param route:
         :param kwargs:
-        :return:
         """
         c = kwargs['cursor']
         conn = kwargs['connection']
@@ -100,33 +99,55 @@ class UserRoutesDAO:
         """.format(route_id))
         conn.commit()
 
-        # Now we need to pull the values back out of the database, since we
-        # have added data to them during the INSERT process
-        c.execute("""SELECT route_id,
-                        step_id,
-                        step_name,
-                        entry_type,
-                        ST_AsText(starting_point),
-                        geom_length_meters,
-                        ST_AsText(geom_centroid),
-                        ST_AsText(geom_extent)
-                   FROM gis.user_routes WHERE route_id = '{0}'
-                   ORDER BY entry_type, step_id ASC""".format(str(route_id)))
+        return route_id
+
+    @staticmethod
+    @with_pg_connection
+    def get_route_from_db(route_id, **kwargs):
+        c = kwargs['cursor']
+        return_geom = kwargs['return_geom']
+
+        if return_geom:
+            c.execute("""SELECT route_id,
+                            step_id,
+                            step_name,
+                            entry_type,
+                            ST_AsText(starting_point),
+                            geom_length_meters,
+                            ST_AsText(geom_centroid),
+                            ST_AsText(geom_extent),
+                            ST_AsText(geom),
+                       FROM gis.user_routes WHERE route_id = '{0}'
+                       ORDER BY entry_type, step_id ASC""".format(str(route_id)))
+        else:
+            c.execute("""SELECT route_id,
+                            step_id,
+                            step_name,
+                            entry_type,
+                            ST_AsText(starting_point),
+                            geom_length_meters,
+                            ST_AsText(geom_centroid),
+                            ST_AsText(geom_extent),
+                            NULL
+                       FROM gis.user_routes WHERE route_id = '{0}'
+                       ORDER BY entry_type, step_id ASC""".format(str(route_id)))
 
         steps = []
         route = None
         for row in c.fetchall():
-            (route_id, step_id, step_name, entry_type, starting_point_str, geom_length_meters, geom_centroid_str, geom_extent_str) = row
+            (route_id, step_id, step_name, entry_type, starting_point_str, geom_length_meters, geom_centroid_str, geom_extent_str, geom_str) = row
             sp = shapely.wkt.loads(starting_point_str)
             gc = shapely.wkt.loads(geom_centroid_str) if geom_centroid_str is not None else None
             ge = shapely.wkt.loads(geom_extent_str) if geom_extent_str is not None else None
+            g = shapely.wkt.loads(geom_str) if geom_str is not None else None
 
             if entry_type == "ROUTE":
                 s = Route(route_id, sp.y, sp.x, step_name)
                 route = s
                 s.steps = steps
+                s.geom = g
             else:
-                s = Step(route_id, step_id, sp.y, sp.x, step_name, None)
+                s = Step(route_id, step_id, sp.y, sp.x, step_name, g)
                 steps.append(s)
 
             s.distance_meters = geom_length_meters if geom_length_meters is not None else 0

@@ -13,6 +13,14 @@
             });
         };
 
+        this.stepHover = function(step){
+            map.fitBounds([[step.miny, step.minx], [step.maxy, step.maxx]]);
+        };
+
+        this.stepHoverOut = function(){
+            map.fitBounds([[this.currentRoute.miny, this.currentRoute.minx], [this.currentRoute.maxy, this.currentRoute.maxx]]);
+        };
+
         this.calculateRoute = function(){
             var ctrl = this;
             $http.get('/graph/calc_route/from/' + this.startLoc.gid + '/to/' + this.endLoc.gid)
@@ -36,6 +44,9 @@
 
                     // add the new one
                     map.addLayer(currentRouteLayer);
+
+                    // Zoom to extent
+                    map.fitBounds([[ctrl.currentRoute.miny, ctrl.currentRoute.minx], [ctrl.currentRoute.maxy, ctrl.currentRoute.maxx]]);
                 });
         };
     }]);

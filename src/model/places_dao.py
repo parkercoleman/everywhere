@@ -92,7 +92,7 @@ class PlacesDAO:
     def get_city_and_state_from_partial(partial_cityname, **kwargs):
         c = kwargs['cursor']
         sql_string = "SELECT gid, name, statefp FROM gis.places WHERE lower(name) LIKE '{0}%%' ORDER BY name"\
-            .format(re.sub(r'\W+', '', partial_cityname).lower())
+            .format(partial_cityname.lower().strip())
 
         c.execute(sql_string)
         results = c.fetchall()

@@ -1,6 +1,7 @@
 import json
 import networkx.exception
 from flask import Blueprint, Response
+import shapely.ops
 from src.util.nocache import nocache
 from src import DEFAULT_LOGGER
 from src.model.places_dao import PlacesDAO
@@ -40,6 +41,12 @@ def convert_steps_to_json_response(steps):
         for s in cg:
             distance_meters += s.distance_meters
 
+        try:
+            (minx, miny, maxx, maxy) = shapely.ops.cascaded_union(
+                    [x.geom_bbox for x in cg if x.geom_bbox is not None]).bounds
+        except ValueError:
+            (minx, miny, maxx, maxy) = (None, None, None, None)
+
         return {
             'lat': lat,
             'lon': lon,
@@ -50,7 +57,11 @@ def convert_steps_to_json_response(steps):
                     else '{0:.2f}'.format(distance_meters * 3.2808388799999997),
                 'unit': 'miles' if distance_meters >= 1610 else 'feet'
             },
-            'steps': [x.step_id for x in cg]
+            'steps': [x.step_id for x in cg],
+            'minx': minx,
+            'miny': miny,
+            'maxx': maxx,
+            'maxy': maxy
         }
 
     for step in steps:
@@ -72,6 +83,7 @@ def convert_steps_to_json_response(steps):
 @graph_endpoints.route("/places/<name>", methods=["GET"])
 @nocache
 def get_places_from_partial_name(name):
+    print(name)
     rl = PlacesDAO.get_city_and_state_from_partial(name)
     return Response(json.dumps(rl, indent=4), mimetype='application/json')
 
@@ -84,12 +96,24 @@ def calculate_route(first_id, second_id):
     except networkx.exception.NetworkXError as e:
         return "Graph error: " + str(e), 400
 
-    route = UserRoutesDAO.insert_and_decorate_route(route)
+    route_id = UserRoutesDAO.insert_and_decorate_route(route)
+    route = UserRoutesDAO.get_route_from_db(route_id, return_geom=False)
     steps_rsp = convert_steps_to_json_response(route.steps)
 
+    (minx, miny, maxx, maxy) = route.geom_bbox.bounds
     rsp = {
         'route_id': route.id,
-        'steps': steps_rsp
+        'steps': steps_rsp,
+        'minx': minx,
+        'miny': miny,
+        'maxx': maxx,
+        'maxy': maxy,
+        'distance': {
+            'val': '{0:.2f}'.format(route.distance_meters * 0.000621371)
+            if route.distance_meters >= 1610
+            else '{0:.2f}'.format(route.distance_meters * 3.2808388799999997),
+            'unit': 'miles' if route.distance_meters >= 1610 else 'feet'
+        },
     }
 
     return Response(json.dumps(rsp, indent=4), mimetype='application/json')

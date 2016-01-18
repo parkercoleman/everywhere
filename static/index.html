@@ -76,9 +76,9 @@
         <div class="col-md-8">
             <div id="map"></div>
         </div>
-        <div class="col-md-2" ng-show="mapCtrl.currentRoute">
+        <div class="col-md-2" ng-show="mapCtrl.currentRoute" ng-mouseleave="mapCtrl.stepHoverOut()">
             <div class="list-group">
-                <button type="button" class="list-group-item" ng-repeat="step in mapCtrl.currentRoute.steps">
+                <button type="button" class="list-group-item" ng-mouseover="mapCtrl.stepHover(step)" ng-repeat="step in mapCtrl.currentRoute.steps">
                     {{step.next_edge_name}} for {{step.distance.val}} {{step.distance.unit}}</button>
             <div>
         </div>
