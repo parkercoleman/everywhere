@@ -1,6 +1,6 @@
 import pg8000
-from src import DEFAULT_LOGGER
-from src.config.db_config import db_config
+from main import DEFAULT_LOGGER
+from main.config.db_config import db_config
 from shapely.geometry import Point
 
 

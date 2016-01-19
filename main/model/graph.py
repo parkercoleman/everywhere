@@ -3,7 +3,7 @@ import pickle
 import abc
 import uuid
 from geopy import distance
-from src.model.places_dao import PlacesDAO
+from main.model.places_dao import PlacesDAO
 
 
 class RoadGraph:

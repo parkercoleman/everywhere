@@ -6,5 +6,5 @@ db_config = {
     "password": "postgres",
     "host": "127.0.0.1",
     "port": 5432,
-    "db_name": "everywhere"
+    "db_name": "otbp"
 }

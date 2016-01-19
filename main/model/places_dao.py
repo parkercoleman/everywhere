@@ -1,4 +1,4 @@
-from src.model import get_node_name_from_location, with_pg_connection
+from main.model import get_node_name_from_location, with_pg_connection
 import shapely.wkt
 import us
 import re

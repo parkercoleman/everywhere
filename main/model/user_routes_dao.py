@@ -1,8 +1,8 @@
 import time
 import shapely.wkt
-from src.model.graph import Route
-from src.model.graph import Step
-from src.model import with_pg_connection
+from main.model.graph import Route
+from main.model.graph import Step
+from main.model import with_pg_connection
 
 
 class UserRoutesDAO:

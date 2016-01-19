@@ -1,6 +1,6 @@
 __author__ = 'pcoleman'
 
-from src.model.graph import *
+from main.model.graph import *
 
 
 def test_create_node_from_db_results():

@@ -1,4 +1,4 @@
-from src.model import with_pg_connection
+from main.model import with_pg_connection
 import shapely.wkt
 
 

@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
 import argparse
-from src.util.data_util import retrieve_all_census_data
-from src.util.data_util import import_data_to_db
-from src.model.graph_factory import GraphFactory
-from src import DEFAULT_LOGGER
-import src.service.graphsvc
+from main.util.data_util import retrieve_all_census_data
+from main.util.data_util import import_data_to_db
+from main.model.graph_factory import GraphFactory
+from main import DEFAULT_LOGGER
+import main.service.graphsvc as graphsvc
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     def run_webapp():
         from flask import Flask
         flask_app = Flask(__name__, static_url_path='')
-        flask_app.register_blueprint(src.service.graphsvc.graph_endpoints, url_prefix='/graph')
+        flask_app.register_blueprint(graphsvc.graph_endpoints, url_prefix='/graph')
         DEFAULT_LOGGER.info(flask_app.url_map)
         flask_app.run()
 

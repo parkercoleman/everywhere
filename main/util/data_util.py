@@ -1,22 +1,20 @@
 import os
 from ftplib import FTP
 from zipfile import ZipFile
-from src import DEFAULT_LOGGER
-from src.model.db_util import create_tables
-from src.model.db_util import execute_import_statements
-from src.model.db_util import vacuum_full
+from main import DEFAULT_LOGGER
+from main.model.db_util import execute_import_statements, vacuum_full
 
 PLACES_DIR = 'data' + os.path.sep + 'places'
 ROADS_DIR = 'data' + os.path.sep + 'roads'
 
 
 def retrieve_data_from_census_ftp(ftp_dir, output_dir):
-    '''
+    """
     Connects to the census FTP server (ftp2.census.gov) and downloads the specified directory to the output directory
     :param ftp_dir: the path to the desired data on the census server
     :param output_dir: the output directory the data will be downloaded to
     :return:
-    '''
+    """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -50,11 +48,11 @@ def retrieve_data_from_census_ftp(ftp_dir, output_dir):
 
 
 def extract_all_to_current_dir(data_dir):
-    '''
+    """
     Extracts all zipped files in the data_dir.  Once extracted, the zipped file will be deleted
     :param data_dir:
     :return:
-    '''
+    """
     for file in os.listdir(data_dir):
         if not file.endswith(".zip"):
             continue
@@ -75,12 +73,11 @@ def retrieve_all_census_data():
 
 
 def import_data_to_db(fips=[]):
-    '''
+    """
     Imports shape file data into the database, requires shp2pgsql to be avialable on the path (it is called via os.popen)
     :param fips: An optional list of state fips codes (integers) to import.
     :return:
-    '''
-    create_tables()
+    """
     for data_dir in (PLACES_DIR, ROADS_DIR):
         for f in os.listdir(data_dir):
             if f.endswith(".shp"):

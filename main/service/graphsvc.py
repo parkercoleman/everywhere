@@ -2,11 +2,11 @@ import json
 import networkx.exception
 from flask import Blueprint, Response
 import shapely.ops
-from src.util.nocache import nocache
-from src import DEFAULT_LOGGER
-from src.model.places_dao import PlacesDAO
-from src.model.graph import RoadGraph, Step
-from src.model.user_routes_dao import UserRoutesDAO
+from main.util.nocache import nocache
+from main import DEFAULT_LOGGER
+from main.model.places_dao import PlacesDAO
+from main.model.graph import RoadGraph, Step
+from main.model.user_routes_dao import UserRoutesDAO
 
 graph_endpoints = Blueprint('graph', __name__)
 
