@@ -53,7 +53,7 @@ class GraphFactory:
         c.execute("SELECT * FROM gis.places_intersection".format(str(i)))
         results = c.fetchall()
         for row in results:
-            gid, statefp, placens, name, rid, rname, location, geom = row
+            gid, name, rid, location = row
 
             p = shapely.wkt.loads(location)
             # Create a city node, similar to an intersection node, but with different tags (namely a "city_name")
@@ -71,7 +71,7 @@ class GraphFactory:
 
     @staticmethod
     def __calc_geom(position, edge_id, destination, roads_tbl):
-        geom = roads_tbl[str(edge_id)]
+        geom = roads_tbl[str(edge_id)]["geom"]
 
         def get_line_index(line, position, index):
             if index[0] == index[1]:
@@ -116,6 +116,14 @@ class GraphFactory:
 
         roads_tbl = RoadsDAO.get_road_hashmap()
 
+        def calculate_weight(road_edge, geom_subset):
+            if geom_subset is None:
+                return None
+
+            # If this happens to be an interstate, the road is effectively 5 times longer.
+            weight_modifier = 1 if roads_tbl[road_edge]["type"] != "I" else 5
+            return geom_subset.length * weight_modifier
+
         for road in roads_to_nodes:
             for i in range(0, len(roads_to_nodes[road])-1):
                 for j in range(i+1, len(roads_to_nodes[road])):
@@ -132,13 +140,14 @@ class GraphFactory:
                     if n2_name not in graph:
                         graph.add_node(n2_name, attr_dict=n2)
 
-                    geom = GraphFactory.__calc_geom(Point(n1['lon'], n1['lat']), road, Point(n2['lon'], n2['lat']), roads_tbl)
+                    geom = GraphFactory.__calc_geom(Point(n1['lon'], n1['lat']), road,
+                                                    Point(n2['lon'], n2['lat']), roads_tbl)
 
                     r.graph.add_edge(n1_name, n2_name,
                                      id=str(uuid.uuid4()),
                                      db_id=road,
                                      name=roads_info[road]["name"],
-                                     weight=geom.length if geom is not None else None,
+                                     weight=calculate_weight(road, geom),
                                      geom=geom)
 
             print('\rConstructing Graph: {0:.2f}%'.format(nodes_processed/len(roads_to_nodes) * 100), end="")

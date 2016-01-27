@@ -20,12 +20,12 @@ class RoadsDAO:
         :return:
         """
         c = kwargs['cursor']
-        sql_string = "SELECT linearid, ST_AsText(geom) FROM gis.roads"
+        sql_string = "SELECT linearid, ST_AsText(geom), rttyp FROM gis.roads"
         c.execute(sql_string)
         results = c.fetchall()
         r = {}
         for row in results:
-            id, geom = row
-            r[id] = shapely.wkt.loads(geom)
+            id, geom, rttyp = row
+            r[id] = {'geom': shapely.wkt.loads(geom), 'type': rttyp}
 
         return r

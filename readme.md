@@ -41,6 +41,7 @@ The --fips argument here takes a list of FIPS ids if we want to limit the amount
 Now we need some metadata tables created, these tables keep track of the locations of road intersections and selects the best intersection that should "represent" a city
 
 ```
+psql -f sql/places_point.sql -h localhost -U postgres -W otbp
 psql -f sql/metadata_setup.sql -h localhost -U postgres -W otbp
 ```
 
