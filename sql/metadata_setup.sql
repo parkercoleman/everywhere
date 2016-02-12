@@ -32,7 +32,7 @@ WITH places AS(
 ), distances AS (
 	SELECT p.gid, p.statefp, p.placens, p.name, ri.r1id, ri.r2id, St_Distance(p.centroid, ri.geom) AS distance, ri.geom, MIN(St_Distance(p.centroid, ri.geom))  OVER (PARTITION BY p.gid)
 	FROM places p
-	INNER JOIN gis.roads_intersection ri ON ST_DWithin(ri.geom, p.geom, 0.3)
+	INNER JOIN gis.roads_intersection ri ON ST_DWithin(ri.geom, p.geom, 1000, true)
 )
 
 SELECT DISTINCT d.gid, d.name, MIN(r.linearid::bigint)::text AS linearid, ST_AsText(d.geom) AS location

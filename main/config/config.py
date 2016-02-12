@@ -8,3 +8,8 @@ db_config = {
     "port": 5432,
     "db_name": "otbp"
 }
+
+
+graph_factory_config = {
+    "number_of_processors": 6
+}
